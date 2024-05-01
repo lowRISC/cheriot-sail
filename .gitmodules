@@ -1,4 +1,4 @@
 [submodule "sail-riscv"]
 	path = sail-riscv
-	url = https://github.com/CHERIoT-platform/sail-riscv.git
+	url = https://github.com/elliotb-lowrisc/sail-riscv.git
 	branch = cheriot-submodule
