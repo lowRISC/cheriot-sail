@@ -215,7 +215,8 @@ let root_cap_exe : Capability = {
   permit_load_store_cap  = true,
   permit_load            = true,
   permit_load_mutable    = true,
-  permit_load_global     = true
+  permit_load_global     = true,
+  address                = 0x80000000 // match cheriot-ibex sram base & trap address
 }
 
 /* The capability root for memory format capabilities. */
