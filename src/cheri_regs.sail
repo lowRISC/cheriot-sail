@@ -86,6 +86,19 @@ function rC r = {
   }
 }
 
+$ifdef RVFI_DII
+val rvfi_wC : forall 'n, 0 <= 'n < 32. (regno('n), CapBits, bool) -> unit
+function rvfi_wC (r,v,t) = {
+  rvfi_cheri_data[rvfi_cd_addr] = to_bits(8,r);
+  rvfi_cheri_data[rvfi_cd_wdata] = zero_extend(v);
+  rvfi_cheri_data[rvfi_cd_wtag] = to_bits(8, if t then 1 else 0);
+  rvfi_cheri_data_present = true;
+}
+$else
+val rvfi_wC : forall 'n, 0 <= 'n < 32. (regno('n), CapBits, bool) -> unit
+function rvfi_wC (r,v,t) = ()
+$endif
+
 /* writes a register with a capability value */
 val wC : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit effect {wreg, escape}
 function wC (r, v) = {
@@ -111,9 +124,9 @@ function wC (r, v) = {
     _  => throw Error_not_rv32e_register()
   };
   if (r != 0) then {
-     rvfi_wX(r, v.address);
+     rvfi_wC(r, capToBits(v), v.tag);
      if get_config_print_reg() then
-       print_reg("x" ^ dec_str(r) ^ " <- " ^ RegStr(v));
+       print_reg("c" ^ dec_str(r) ^ " <- " ^ RegStr(v));
   }
 }
 
