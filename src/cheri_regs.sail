@@ -62,28 +62,53 @@
 
 /* accessors for capability representation */
 
+$ifdef RVFI_DII
+val rvfi_rC : forall 'n, 0 <= 'n < 32. (regno('n), regor, CapBits, bool) -> unit
+function rvfi_rC (r,o,v,t) = {
+  if (o == rs_1) then {
+    rvfi_cheri_data[rvfi_cs1_addr]  = to_bits(8,r);
+    rvfi_cheri_data[rvfi_cs1_rdata] = zero_extend(v);
+    rvfi_cheri_data[rvfi_cs1_rtag]  = to_bits(8, if t then 1 else 0);
+  };
+  if (o == rs_2) then {
+    rvfi_cheri_data[rvfi_cs2_addr]  = to_bits(8,r);
+    rvfi_cheri_data[rvfi_cs2_rdata] = zero_extend(v);
+    rvfi_cheri_data[rvfi_cs2_rtag]  = to_bits(8, if t then 1 else 0);
+  };
+  rvfi_cheri_data_present = true;
+}
+$else
+val rvfi_rC : forall 'n, 0 <= 'n < 32. (regno('n), bool, CapBits, bool) -> unit
+function rvfi_rC (r,o,v,t) = ()
+$endif
+
 /* reads a given capability register, or the null capability if the argument is zero. */
-val rC : forall 'n, 0 <= 'n < 32. regno('n) -> regtype effect {rreg, escape}
-function rC r = {
-  match r {
-    0  => zero_reg,
-    1  => x1,
-    2  => x2,
-    3  => x3,
-    4  => x4,
-    5  => x5,
-    6  => x6,
-    7  => x7,
-    8  => x8,
-    9  => x9,
-    10 => x10,
-    11 => x11,
-    12 => x12,
-    13 => x13,
-    14 => x14,
-    15 => x15,
-    _  => throw Error_not_rv32e_register()
-  }
+val rC : forall 'n, 0 <= 'n < 32. (regno('n), regor) -> regtype effect {rreg, escape}
+function rC (r,o) = {
+  let v : Capability =
+    match r {
+      0  => zero_reg,
+      1  => x1,
+      2  => x2,
+      3  => x3,
+      4  => x4,
+      5  => x5,
+      6  => x6,
+      7  => x7,
+      8  => x8,
+      9  => x9,
+      10 => x10,
+      11 => x11,
+      12 => x12,
+      13 => x13,
+      14 => x14,
+      15 => x15,
+      _  => throw Error_not_rv32e_register()
+    };
+  if (r != 0) then {
+    rvfi_rC(r, o, capToBits(v), v.tag);
+  };
+  v
 }
 
 $ifdef RVFI_DII
@@ -130,7 +155,7 @@ function wC (r, v) = {
   }
 }
 
-function rC_bits(r: bits(5)) -> regtype = rC(unsigned(r))
+function rC_bits(r: bits(5), o: regor) -> regtype = rC(unsigned(r), o)
 
 function wC_bits(r: bits(5), v: regtype) -> unit = wC(unsigned(r), v)
 
