@@ -81,7 +81,7 @@ union clause ast = AUICGP : (bits(20), regidx)
  */
 function clause execute AUICGP(imm, cd) = {
   let off : xlenbits = sign_extend(imm) << 11;
-  let cgp_val = C(CGP_IDX); /* $c3 */
+  let cgp_val = C(CGP_IDX, rs_na); /* $c3 */
   let (representable, newCap) = incCapAddr(cgp_val, off);
   C(cd) = clearTagIf(newCap, isCapSealed(cgp_val) | not(representable));
   RETIRE_SUCCESS
@@ -160,7 +160,7 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  *     undefined.
  */
 function clause execute(CJALR(imm, cs1, cd)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = C(cs1, rs_1);
   let off : xlenbits = sign_extend(imm);
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
 
@@ -227,7 +227,7 @@ union clause ast = CGetTop    : (regidx, regidx)
  * The other bits of *rd* are set to zero.
  */
 function clause execute (CGetPerm(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = C(cs1, rs_1);
   X(rd) = zero_extend(getCapPerms(capVal));
   RETIRE_SUCCESS
 }
@@ -237,7 +237,7 @@ function clause execute (CGetPerm(rd, cs1)) = {
  * register *cs1*.
  */
 function clause execute (CGetType(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = C(cs1, rs_1);
   X(rd) = zero_extend(capVal.otype);
   RETIRE_SUCCESS
 }
@@ -247,7 +247,7 @@ function clause execute (CGetType(rd, cs1)) = {
  * register *cs1*.
  */
 function clause execute (CGetBase(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = C(cs1, rs_1);
   X(rd) = getCapBaseBits(capVal);
   RETIRE_SUCCESS
 }
@@ -264,7 +264,7 @@ function clause execute (CGetBase(rd, cs1)) = {
  * capability is interpreted as a twice-**XLEN**-bit integer).
  */
 function clause execute (CGetHigh(rd, cs1)) = {
-  let capVal : Capability = C(cs1);
+  let capVal : Capability = C(cs1, rs_1);
   X(rd) = capToBits(capVal)[sizeof(xlen) * 2 - 1 .. sizeof(xlen)];
   RETIRE_SUCCESS
 }
@@ -282,8 +282,8 @@ union clause ast = CSetHigh : (regidx, regidx, regidx)
  *
  */
 function clause execute (CSetHigh(cd, cs1, rs2)) = {
-  let capVal = C(cs1);
-  let intVal = X(rs2);
+  let capVal = C(cs1, rs_1);
+  let intVal = X(rs2, rs_2);
   let capLow : xlenbits = capToBits(capVal)[sizeof(xlen) - 1 .. 0];
   let newCap : Capability = capBitsToCapability(false, intVal @ capLow);
   C(cd) = newCap;
@@ -301,7 +301,7 @@ function clause execute (CSetHigh(cd, cs1, rs2)) = {
  *   maximum value of $2^{[{xlen}][xlen]}-1$ in this case.
  */
 function clause execute (CGetTop(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = C(cs1, rs_1);
   let top = getCapTop(capVal);
   X(rd) = to_bits(sizeof(xlen), if top > cap_max_addr then cap_max_addr else top);
   RETIRE_SUCCESS
@@ -322,7 +322,7 @@ function clause execute (CGetTop(rd, cs1)) = {
  *   maximum value of $2^{[{xlen}][xlen]}-1$ in this case.
  */
 function clause execute (CGetLen(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = C(cs1, rs_1);
   let len = getCapLength(capVal);
   X(rd) = to_bits(sizeof(xlen), if len > cap_max_addr then cap_max_addr else len);
   RETIRE_SUCCESS
@@ -333,7 +333,7 @@ function clause execute (CGetLen(rd, cs1)) = {
  * All other bits of *rd* are cleared.
  */
 function clause execute (CGetTag(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = C(cs1, rs_1);
   X(rd) = zero_extend(bool_to_bits(capVal.tag));
   RETIRE_SUCCESS
 }
@@ -343,7 +343,7 @@ function clause execute (CGetTag(rd, cs1)) = {
  * register *cs1*.
  */
 function clause execute (CGetAddr(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = C(cs1, rs_1);
   X(rd) = capVal.address;
   RETIRE_SUCCESS
 }
@@ -387,7 +387,7 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ scr);
     RETIRE_FAIL
   } else {
-    var cs1_val = C(cs1);
+    var cs1_val = C(cs1, rs_1);
     C(cd) = match unsigned(scr) {
       28 => MTCC,
       29 => MTDC,
@@ -436,8 +436,8 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  * than Permit_Global, then *cd*.**tag** is cleared.
  */
 function clause execute(CAndPerm(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
-  let rs2_val = X(rs2);
+  let cs1_val = C(cs1, rs_1);
+  let rs2_val = X(rs2, rs_2);
 
   let perms = getCapPerms(cs1_val);
   let mask = truncate(rs2_val, cap_perms_width);
@@ -470,8 +470,8 @@ union clause ast = CSub : (regidx, regidx, regidx)
  * *cs2*.**address**) $\bmod~2^{[{xlen}][xlen]}$.
  */
 function clause execute(CSub(rd, cs1, cs2)) = {
-  let cs2_val = C(cs2);
-  let cs1_val = C(cs1);
+  let cs2_val = C(cs2, rs_2);
+  let cs1_val = C(cs1, rs_1);
 
   X(rd) = cs1_val.address - cs2_val.address;
   RETIRE_SUCCESS
@@ -487,8 +487,8 @@ union clause ast = CIncAddr : (regidx, regidx, regidx)
  * *cs1*.**address** $+$ *rs2* decodes to.
  */
 function clause execute (CIncAddr(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
-  let rs2_val = X(rs2);
+  let cs1_val = C(cs1, rs_1);
+  let rs2_val = X(rs2, rs_2);
 
   let inCap = clearTagIfSealed(cs1_val);
   let (success, newCap) = incCapAddr(inCap, rs2_val);
@@ -507,7 +507,7 @@ union clause ast = CIncAddrImmediate : (regidx, regidx, bits(12))
  * *cs1*.**address** $+$ *imm* decodes to.
  */
 function clause execute (CIncAddrImmediate(cd, cs1, imm)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = C(cs1, rs_1);
   let immBits : xlenbits = sign_extend(imm);
 
   let inCap = clearTagIfSealed(cs1_val);
@@ -527,8 +527,8 @@ union clause ast = CSetAddr : (regidx, regidx, regidx)
  * *rs2* decodes to.
  */
 function clause execute (CSetAddr(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
-  let rs2_val = X(rs2);
+  let cs1_val = C(cs1, rs_1);
+  let rs2_val = X(rs2, rs_2);
 
   let inCap = clearTagIfSealed(cs1_val);
   let (representable, newCap) = setCapAddr(inCap, rs2_val);
@@ -562,8 +562,8 @@ union clause ast = CSetBounds : (regidx, regidx, regidx)
  *    computing the new bounds.
  */
 function clause execute (CSetBounds(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
-  let rs2_val = X(rs2);
+  let cs1_val = C(cs1, rs_1);
+  let rs2_val = X(rs2, rs_2);
 
   let newBase = cs1_val.address;
   let newLen  = rs2_val;
@@ -591,7 +591,7 @@ union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
  *    [CSetBounds].
  */
 function clause execute (CSetBoundsImmediate(cd, cs1, uimm)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = C(cs1, rs_1);
 
   let newBase = cs1_val.address;
   let newLen : CapAddrBits = zero_extend(uimm);
@@ -620,11 +620,11 @@ union clause ast = CSetBoundsExact : (regidx, regidx, regidx)
  *    [CSetBounds].
  */
 function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
-  let rs2_val = X(rs2);
+  let cs1_val = C(cs1, rs_1);
+  let rs2_val = X(rs2, rs_2);
 
   let newBase = cs1_val.address;
-  let newLen = X(rs2);
+  let newLen = X(rs2, rs_2);
   let inBounds = inCapBounds(cs1_val, newBase, unsigned(newLen));
 
   let inCap = clearTagIfSealed(cs1_val);
@@ -676,7 +676,7 @@ union clause ast = CClearTag : (regidx, regidx)
  * the **tag** field cleared.
  */
 function clause execute (CClearTag(cd, cs1)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = C(cs1, rs_1);
   C(cd) = clearTag(cs1_val);
   RETIRE_SUCCESS
 }
@@ -686,7 +686,7 @@ union clause ast = CMove : (regidx, regidx)
  * Capability register *cd* is replaced with the contents of *cs1*.
  */
 function clause execute (CMove(cd, cs1)) = {
-  C(cd) = C(cs1);
+  C(cd) = C(cs1, rs_1);
   RETIRE_SUCCESS
 }
 
@@ -699,7 +699,7 @@ union clause ast = CRRL : (regidx, regidx)
  * set to zero. Users should be careful to account for this case.
  */
 function clause execute(CRRL(rd, rs1)) = {
-  let len = X(rs1);
+  let len = X(rs1, rs_1);
   X(rd) = getRepresentableLength(len);
   RETIRE_SUCCESS
 }
@@ -711,7 +711,7 @@ union clause ast = CRAM : (regidx, regidx)
  * nearest representable length of *rs1* (as obtained by [CRRL]).
  */
 function clause execute(CRAM(rd, rs1)) = {
-  let len = X(rs1);
+  let len = X(rs1, rs_1);
   X(rd) = getRepresentableAlignmentMask(len);
   RETIRE_SUCCESS
 }
@@ -732,8 +732,8 @@ union clause ast = CTestSubset : (regidx, regidx, regidx)
  *   **otype**s as unordered as is done for the **tag** field.
  */
 function clause execute (CTestSubset(rd, cs1, cs2)) = {
-  let cs1_val = C(cs1);
-  let cs2_val = C(cs2);
+  let cs1_val = C(cs1, rs_1);
+  let cs2_val = C(cs2, rs_2);
 
   let (cs2_base, cs2_top) = getCapBounds(cs2_val);
   let (cs1_base, cs1_top) = getCapBounds(cs1_val);
@@ -762,8 +762,8 @@ union clause ast = CSEQX : (regidx, regidx, regidx)
  * including any reserved encoding bits, otherwise it is set to 0.
  */
 function clause execute (CSEQX(rd, cs1, cs2)) = {
-  let cs1_val = C(cs1);
-  let cs2_val = C(cs2);
+  let cs1_val = C(cs1, rs_1);
+  let cs2_val = C(cs2, rs_2);
   X(rd) = zero_extend(bool_to_bits(cs1_val == cs2_val));
   RETIRE_SUCCESS
 }
@@ -776,8 +776,8 @@ union clause ast = CSeal : (regidx, regidx, regidx)
  * sealed, then the **tag** field of *cd* is cleared.
  */
 function clause execute (CSeal(cd, cs1, cs2)) = {
-  let cs1_val = C(cs1);
-  let cs2_val = C(cs2);
+  let cs1_val = C(cs1, rs_1);
+  let cs2_val = C(cs2, rs_2);
 
   let cs2_addr = unsigned(cs2_val.address);
   let (cs2_base, cs2_top) = getCapBounds(cs2_val);
@@ -822,8 +822,8 @@ union clause ast = CUnseal : (regidx, regidx, regidx)
  * the **tag** field of *cd* is cleared.
  */
 function clause execute (CUnseal(cd, cs1, cs2)) = {
-  let cs1_val = C(cs1);
-  let cs2_val = C(cs2);
+  let cs1_val = C(cs1, rs_1);
+  let cs2_val = C(cs2, rs_2);
   let cs2_addr = unsigned(cs2_val.address);
   let permitted = cs2_val.tag
                 & isCapSealed(cs1_val)
@@ -856,7 +856,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  */
 function clause execute LoadCapImm(cd, cs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
-  let auth_val = C(cs1);
+  let auth_val = C(cs1, rs_1);
   let vaddrBits = auth_val.address + offset;
   if not(auth_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
@@ -950,9 +950,9 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  */
 function clause execute StoreCapImm(cs2, cs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
-  let auth_val = C(cs1);
+  let auth_val = C(cs1, rs_1);
   let vaddrBits = auth_val.address + offset;
-  let cs2_val = C(cs2);
+  let cs2_val = C(cs2, rs_2);
   if not(auth_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
