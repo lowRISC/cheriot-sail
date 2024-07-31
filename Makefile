@@ -312,6 +312,7 @@ rvfi_preserve_fns=-c_preserve rvfi_set_instr_packet \
   -c_preserve rvfi_get_int_data \
   -c_preserve rvfi_get_csr_data \
   -c_preserve rvfi_get_cheri_data \
+  -c_preserve rvfi_get_cheri_scr_data \
   -c_preserve rvfi_zero_exec_packet \
   -c_preserve rvfi_halt_exec_packet \
   -c_preserve print_rvfi_exec \

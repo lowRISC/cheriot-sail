@@ -326,6 +326,32 @@ function clause execute (CGetAddr(rd, cs1)) = {
   RETIRE_SUCCESS
 }
 
+$ifdef RVFI_DII
+val rvfi_rSCR : (screg, CapBits, bool) -> unit
+function rvfi_rSCR (r,v,t) = {
+  rvfi_cheri_scr_data[rvfi_scr_addr]  = zero_extend(r);
+  rvfi_cheri_scr_data[rvfi_scr_rdata] = zero_extend(v);
+  rvfi_cheri_scr_data[rvfi_scr_rtag] = to_bits(8, if t then 1 else 0);
+  rvfi_cheri_scr_data_present = true;
+}
+$else
+val rvfi_rSCR : (screg, CapBits, bool) -> unit
+function rvfi_rSCR (r,v,t) = ()
+$endif
+
+$ifdef RVFI_DII
+val rvfi_wSCR : (screg, CapBits, bool) -> unit
+function rvfi_wSCR (r,v,t) = {
+  rvfi_cheri_scr_data[rvfi_scr_addr]  = zero_extend(r);
+  rvfi_cheri_scr_data[rvfi_scr_wdata] = zero_extend(v);
+  rvfi_cheri_scr_data[rvfi_scr_wtag] = to_bits(8, if t then 1 else 0);
+  rvfi_cheri_scr_data_present = true;
+}
+$else
+val rvfi_wSCR : (screg, CapBits, bool) -> unit
+function rvfi_wSCR (r,v,t) = ()
+$endif
+
 union clause ast = CSpecialRW : (regidx, screg, regidx)
 /*!
  * Capability register *cd* is set equal to special capability register *scr*,
@@ -366,14 +392,17 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     RETIRE_FAIL
   } else {
     var cs1_val = C(cs1, rs_1);
-    C(cd) = match unsigned(scr) {
+    let scr_val : Capability = match unsigned(scr) {
       28 => MTCC,
       29 => MTDC,
       30 => MScratchC,
       31 => MEPCC,
       _  => {assert(false, "unreachable"); undefined}
     };
+    C(cd) = scr_val;
+    rvfi_rSCR(scr, capToBits(scr_val), scr_val.tag); /* note that cd!=c0 is NOT a requirement for CSpecialRW reads */
     if (cs1 != zeros()) then {
+      rvfi_wSCR(scr, capToBits(cs1_val), cs1_val.tag); /* may be overridden below; cs1!=c0 check already done */
       match unsigned(scr) {
         28 => {
           /* Validate that the new MTCC is unsealed, executable and 
@@ -383,7 +412,9 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
             not(cs1_val.permit_execute);
           /* Legalize MTCC.address / mtvec */
           cs1_val.address[1..0] = 0b00;
-          MTCC = clearTagIf(cs1_val, invalid)
+          cs1_val = clearTagIf(cs1_val, invalid);
+          rvfi_wSCR(scr, capToBits(cs1_val), cs1_val.tag); /* override prior value and tag */
+          MTCC = cs1_val
         },
         29 => MTDC = cs1_val,
         30 => MScratchC = cs1_val,
@@ -394,7 +425,9 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
             not(cs1_val.permit_execute);
           /* Legalize MEPCC.address / mepc */
           cs1_val.address[0] = bitzero;
-          MEPCC = clearTagIf(cs1_val, invalid)
+          cs1_val = clearTagIf(cs1_val, invalid);
+          rvfi_wSCR(scr, capToBits(cs1_val), cs1_val.tag); /* override prior value and tag */
+          MEPCC = cs1_val
         },
         _  => assert(false, "unreachable")
       }
