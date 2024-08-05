@@ -71,7 +71,7 @@
  */
 val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability)
 function mem_read_cap (addr, aq, rl, res) = {
-  let result : MemoryOpResult((CapBits, bool)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true);
+  let result : MemoryOpResult((CapBits, bool)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res);
   match result {
     MemValue(v, tag) => MemValue(capBitsToCapability(tag, v)),
     MemException(e)  => MemException(e) : MemoryOpResult(Capability)
@@ -81,28 +81,11 @@ function mem_read_cap (addr, aq, rl, res) = {
 /*!
  * THIS(addr) reads the revocation bit corresponding with the revocation
  * granule aligned address.
+ *
+ * The verification flow does not currently support this
  */
 val mem_read_cap_revoked : xlenbits -> bool
-function mem_read_cap_revoked (addr) = {
-  let ram_base = plat_ram_base();
-  /* XXX we put the revocation bits in the existing DRAM region for now so we
-    don't have to create a new memory region in riscv_platform.sail. This only
-    works if software doesn't otherwise use this memory which is likely because
-    the MCU has much less than the Sail default of 1GiB. */
-  let revocation_bits_base = 0x83000000;
-  if (addr <_u ram_base) then {
-    /* reads outside the revokable region are never revoked */
-    false
-  } else {
-    /* Find the offset in shadow region of the byte containing the relevant bit.
-       There are 8 bits per byte and each bit covers 8 bytes of address space so
-       shift right by 6. */
-    let revocation_byte_offset = (addr - ram_base) >> 6;
-    let byte = __read_mem(Read_plain, sizeof(xlen), revocation_bits_base + revocation_byte_offset, 1);
-    /* extract the relevant bit of byte */
-    return bit_to_bool(byte[unsigned(addr[5..3])])
-  }
-}
+function mem_read_cap_revoked (addr) = false
 
 /*!
  * THIS(addr, aq, rl, res) announces the effective address for an intended capability
@@ -117,11 +100,7 @@ function mem_read_cap_revoked (addr) = {
  * may be ignored in sequential execution.
  */
 val mem_write_ea_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(unit)
-function mem_write_ea_cap(addr, aq, rl, con) = {
-  if   ~(is_aligned_addr(addr, cap_size))
-  then MemException(E_SAMO_Addr_Align())
-  else MemValue(__write_mem_ea(Write_plain, sizeof(xlen), addr, cap_size)) // FIXME: is Write_plain correct?
-}
+function mem_write_ea_cap(addr, aq, rl, con) = MemValue()
 
 /*!
  * THIS(addr, cap, aq, rl, res) writes the Capability value [cap] (including tag)

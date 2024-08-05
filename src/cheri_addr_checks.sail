@@ -72,7 +72,7 @@
 val handle_cheri_cap_exception : (CapEx, capreg_idx) -> unit
 function handle_cheri_cap_exception(capEx, regnum) =
   {
-    if get_config_print_instr() | get_config_print_exception()
+    if get_config_print_instr()
     then print_string("CHERI ", string_of_capex(capEx) ^ " Reg=" ^ string_of_capreg_idx(regnum) ^ " PC=" ^ BitStr(PC));
     let t : sync_exception = struct {
       trap    = E_Extension(EXC_CHERI),
@@ -164,7 +164,7 @@ function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = 
 
 type ext_data_addr_error = (CapEx, capreg_idx)
 
-function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : word_width)
+function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : range(1, max_mem_access))
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
 
   let auth_val = C(base_reg);
@@ -189,7 +189,7 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
     Ext_DataAddr_Error(CapEx_PermitLoadViolation, auth_idx)
   else if not(have_rqd_store_perm) then
     Ext_DataAddr_Error(CapEx_PermitStoreViolation, auth_idx)
-  else if not(inCapBounds(auth_val, newAddr, word_width_bytes(width))) then
+  else if not(inCapBounds(auth_val, newAddr, width)) then
     Ext_DataAddr_Error(CapEx_BoundsViolation, auth_idx)
   else
     Ext_DataAddr_OK(newAddr)

@@ -82,7 +82,23 @@ function rC r = {
     13 => x13,
     14 => x14,
     15 => x15,
-    _  => throw Error_not_rv32e_register()
+    16 => x16,
+    17 => x17,
+    18 => x18,
+    19 => x19,
+    20 => x20,
+    21 => x21,
+    22 => x22,
+    23 => x23,
+    24 => x24,
+    25 => x25,
+    26 => x26,
+    27 => x27,
+    28 => x28,
+    29 => x29,
+    30 => x30,
+    31 => x31,
+    _  => {assert(false, "invalid register number"); zero_reg}
   }
 }
 
@@ -108,7 +124,23 @@ function wC (r, v) = {
     13 => x13 = v,
     14 => x14 = v,
     15 => x15 = v,
-    _  => throw Error_not_rv32e_register()
+    16 => x16 = v,
+    17 => x17 = v,
+    18 => x18 = v,
+    19 => x19 = v,
+    20 => x20 = v,
+    21 => x21 = v,
+    22 => x22 = v,
+    23 => x23 = v,
+    24 => x24 = v,
+    25 => x25 = v,
+    26 => x26 = v,
+    27 => x27 = v,
+    28 => x28 = v,
+    29 => x29 = v,
+    30 => x30 = v,
+    31 => x31 = v,
+    _  => assert(false, "invalid register number")
   };
   if (r != 0) then {
      rvfi_wX(r, v.address);
@@ -187,10 +219,7 @@ function ext_rvfi_init () = {
 val cap_reg_name_abi : regidx -> string
 
 function cap_reg_name_abi(r) = {
-  match (r) {
-    0b00000 => "cnull",
-    _       => "c" ^ reg_name_abi(r)
-  }
+  "_"
 }
 
 overload to_str = {cap_reg_name_abi}

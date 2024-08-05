@@ -63,8 +63,6 @@
 /* Compressed capability loads/stores (encodings differ between RV32/RV64) */
 union clause ast = C_CLC : (cregidx, cregidx, bits(9))
 
-mapping clause encdec_compressed_capmode = C_CLC(cdc, csc1, ui8 @ ui76 @ ui54 @ 0b0000) if sizeof(xlen) == 64
-  <-> 0b001 @ ui54 : bits(2) @ ui8 : bits(1) @ csc1 : cregidx @ ui76 : bits(2) @ cdc : cregidx @ 0b00 if sizeof(xlen) == 64
 mapping clause encdec_compressed_capmode = C_CLC(cdc, csc1, 0b0 @ ui76 @ ui53 @ 0b000) if sizeof(xlen) == 32
   <-> 0b011 @ ui53 : bits(3) @ csc1 : cregidx @ ui76 : bits(2) @ cdc : cregidx @ 0b00 if sizeof(xlen) == 32
 mapping clause assembly = C_CLC(cdc, csc1, uimm)
@@ -78,16 +76,14 @@ mapping clause assembly = C_CLC(cdc, csc1, uimm)
  * - This instruction is only available in capability encoding mode.
  * - For RV32 this replaces the encoding of [C.FLW], RV64 uses [C.FLD].
  */
-function clause execute(C_CLC(cdc, csc1, uimm)) = {
+function clause decompress(C_CLC(cdc, csc1, uimm)) = {
   let cd = creg2reg_idx(cdc) in
   let cs1 = creg2reg_idx(csc1) in
-  execute(LoadCapImm(cd, cs1, zero_extend(uimm)))
+  Some(LoadCapImm(cd, cs1, zero_extend(uimm)))
 }
 
 union clause ast = C_CLCSP : (regidx, bits(10))
 
-mapping clause encdec_compressed_capmode = C_CLCSP(cd, ui96 @ ui5 @ ui4 @ 0b0000) if sizeof(xlen) == 64 & cd != zeros()
-  <-> 0b001 @ ui5 : bits(1) @ cd : regidx @ ui4 : bits(1) @ ui96 : bits(4) @ 0b10 if sizeof(xlen) == 64 & cd != zeros()
 mapping clause encdec_compressed_capmode = C_CLCSP(cd, 0b0 @ ui86 @ ui5 @ ui43 @ 0b000) if sizeof(xlen) == 32 & cd != zeros()
   <-> 0b011 @ ui5 : bits(1) @ cd : regidx @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10 if sizeof(xlen) == 32 & cd != zeros()
 mapping clause assembly = C_CLCSP(cd, uimm)
@@ -103,23 +99,19 @@ mapping clause assembly = C_CLCSP(cd, uimm)
  * - The encoding with `cd == 0` is reserved and will raise an illegal
  *   instruction trap.
  */
-function clause execute(C_CLCSP(cd, uimm)) =
-  execute(LoadCapImm(cd, sp, zero_extend(uimm)))
+function clause decompress(C_CLCSP(cd, uimm)) =
+  Some(LoadCapImm(cd, sp, zero_extend(uimm)))
 
 /*
  * The c.clcsp encoding with cd == 0 should raise an illegal instruction trap
  * instead of falling back to the non-capmode (legal) instruction
  * `c.flwsp/fldsp f0` so we need an explicit capmode illegal match clause.
  */
-mapping clause encdec_compressed_capmode = C_ILLEGAL(0b001 @ ui5 @ 0b00000 @ ui4 @ ui96 @ 0b10) if sizeof(xlen) == 64
-  <-> 0b001 @ ui5 : bits(1) @ 0b00000 @ ui4 : bits(1) @ ui96 : bits(4) @ 0b10 if sizeof(xlen) == 64
 mapping clause encdec_compressed_capmode = C_ILLEGAL(0b011 @ ui5 @ 0b00000 @ ui43 @ ui86 @ 0b10) if sizeof(xlen) == 32
   <-> 0b011 @ ui5 : bits(1) @ 0b00000 @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10 if sizeof(xlen) == 32
 
 union clause ast = C_CSC : (cregidx, cregidx, bits(9))
 
-mapping clause encdec_compressed_capmode = C_CSC(csc2, csc1, ui8 @ ui76 @ ui54 @ 0b0000) if sizeof(xlen) == 64
-  <-> 0b101 @ ui54 : bits(2) @ ui8 : bits(1) @ csc1 : bits(3) @ ui76 : bits(2) @ csc2 : bits(3) @ 0b00 if sizeof(xlen) == 64
 mapping clause encdec_compressed_capmode = C_CSC(csc2, csc1, 0b0 @ ui76 @ ui53 @ 0b000) if sizeof(xlen) == 32
   <-> 0b111 @ ui53 : bits(3) @ csc1 : bits(3) @ ui76 : bits(2) @ csc2 : bits(3) @ 0b00 if sizeof(xlen) == 32
 mapping clause assembly = C_CSC(csc2, csc1, uimm)
@@ -133,16 +125,14 @@ mapping clause assembly = C_CSC(csc2, csc1, uimm)
  * - This instruction is only available in capability encoding mode.
  * - For RV32 this replaces the encoding of [C.FSW], RV64 uses [C.FSD].
  */
-function clause execute(C_CSC(csc2, csc1, uimm)) = {
+function clause decompress(C_CSC(csc2, csc1, uimm)) = {
   let cs2 = creg2reg_idx(csc2) in
   let cs1 = creg2reg_idx(csc1) in
-  execute(StoreCapImm(cs2, cs1, zero_extend(uimm)))
+  Some(StoreCapImm(cs2, cs1, zero_extend(uimm)))
 }
 
 union clause ast = C_CSCSP : (regidx, bits(10))
 
-mapping clause encdec_compressed_capmode = C_CSCSP(cs2, ui96 @ ui54 @ 0b0000) if sizeof(xlen) == 64
-  <-> 0b101 @ ui54 : bits(2) @ ui96 : bits(4) @ cs2 : regidx @ 0b10 if sizeof(xlen) == 64
 mapping clause encdec_compressed_capmode = C_CSCSP(cs2, 0b0 @ ui86 @ ui53 @ 0b000) if sizeof(xlen) == 32
   <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ cs2 : regidx @ 0b10 if sizeof(xlen) == 32
 mapping clause assembly = C_CSCSP(cs2, uimm)
@@ -156,8 +146,8 @@ mapping clause assembly = C_CSCSP(cs2, uimm)
  * - This instruction is only available in capability encoding mode.
  * - For RV32 this replaces the encoding of [C.FSWSP], RV64 uses [C.FSDSP].
  */
-function clause execute(C_CSCSP(cs2, uimm)) =
-  execute(StoreCapImm(cs2, sp, zero_extend(uimm)))
+function clause decompress(C_CSCSP(cs2, uimm)) =
+  Some(StoreCapImm(cs2, sp, zero_extend(uimm)))
 
 /* Capability arithmetic instructions */
 union clause ast = C_CIncAddr16CSP : (bits(10))
@@ -178,8 +168,8 @@ mapping clause assembly = C_CIncAddr16CSP(nzimm) if nzimm != 0b0000000000
  * - This instruction is only available in capability encoding mode.
  * - This instruction replaces the encoding of [C.ADDI16SP].
  */
-function clause execute(C_CIncAddr16CSP(nzimm)) =
-  execute(CIncAddrImmediate(sp, sp, sign_extend(nzimm)))
+function clause decompress(C_CIncAddr16CSP(nzimm)) =
+  Some(CIncAddrImmediate(sp, sp, sign_extend(nzimm)))
 
 union clause ast = C_CIncAddr4CSPN : (cregidx, bits(10))
 
@@ -199,9 +189,9 @@ mapping clause assembly = C_CIncAddr4CSPN(cdc, nzuimm) if nzuimm != 0b0000000000
  * - This instruction is only available in capability encoding mode.
  * - This instruction replaces the encoding of [C.ADDI4SPN].
  */
-function clause execute(C_CIncAddr4CSPN(cdc, nzuimm)) = {
+function clause decompress(C_CIncAddr4CSPN(cdc, nzuimm)) = {
   let cd = creg2reg_idx(cdc) in
-  execute(CIncAddrImmediate(cd, sp, zero_extend(nzuimm)))
+  Some(CIncAddrImmediate(cd, sp, zero_extend(nzuimm)))
 }
 
 /* Control flow */
@@ -221,7 +211,7 @@ mapping clause assembly = C_CJALR(cs1) if cs1 != zreg
  * - This instruction is only available in capability encoding mode.
  * - This instruction replaces the encoding of [C.JALR].
  */
-function clause execute(C_CJALR(cs1)) = execute(CJALR(zeros(), cs1, ra))
+function clause decompress(C_CJALR(cs1)) = Some(CJALR(zeros(), cs1, ra))
 
 union clause ast = C_CJR : (regidx)
 
@@ -239,7 +229,7 @@ mapping clause assembly = C_CJR(cs1) if cs1 != zreg
  * - This instruction is only available in capability encoding mode.
  * - This instruction replaces the encoding of [C.JR].
  */
-function clause execute(C_CJR(cs1)) = execute(CJALR(zeros(), cs1, zreg))
+function clause decompress(C_CJR(cs1)) = Some(CJALR(zeros(), cs1, zreg))
 
 union clause ast = C_CJAL : (bits(12))
 
@@ -259,4 +249,4 @@ mapping clause assembly = C_CJAL(imm) if sizeof(xlen) == 32
  * - This instruction is only available in RV32.
  * - This instruction replaces the encoding of [C.JAL].
  */
-function clause execute(C_CJAL(imm)) = execute(CJAL(sign_extend(imm), ra))
+function clause decompress(C_CJAL(imm)) = Some(CJAL(sign_extend(imm), ra))
