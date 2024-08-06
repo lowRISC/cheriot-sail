@@ -84,8 +84,8 @@ function clause decompress(C_CLC(cdc, csc1, uimm)) = {
 
 union clause ast = C_CLCSP : (regidx, bits(10))
 
-mapping clause encdec_compressed_capmode = C_CLCSP(cd, 0b0 @ ui86 @ ui5 @ ui43 @ 0b000) if sizeof(xlen) == 32 & cd != zeros()
-  <-> 0b011 @ ui5 : bits(1) @ cd : regidx @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10 if sizeof(xlen) == 32 & cd != zeros()
+mapping clause encdec_compressed_capmode = C_CLCSP(cd, 0b0 @ ui86 @ ui5 @ ui43 @ 0b000) if sizeof(xlen) == 32 & cd != zreg
+  <-> 0b011 @ ui5 : bits(1) @ encdec_r(cd) @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10 if sizeof(xlen) == 32 & cd != zreg
 mapping clause assembly = C_CLCSP(cd, uimm)
   <-> "c.clcsp" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_10(uimm)
 
@@ -134,7 +134,7 @@ function clause decompress(C_CSC(csc2, csc1, uimm)) = {
 union clause ast = C_CSCSP : (regidx, bits(10))
 
 mapping clause encdec_compressed_capmode = C_CSCSP(cs2, 0b0 @ ui86 @ ui53 @ 0b000) if sizeof(xlen) == 32
-  <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ cs2 : regidx @ 0b10 if sizeof(xlen) == 32
+  <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ encdec_r(cs2) @ 0b10 if sizeof(xlen) == 32
 mapping clause assembly = C_CSCSP(cs2, uimm)
   <-> "c.cscsp" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_10(uimm)
 
@@ -198,7 +198,7 @@ function clause decompress(C_CIncAddr4CSPN(cdc, nzuimm)) = {
 union clause ast = C_CJALR : (regidx)
 
 mapping clause encdec_compressed_capmode = C_CJALR(cs1) if cs1 != zreg
-  <-> 0b100 @ 0b1 @ cs1 : regidx @ 0b00000 @ 0b10 if cs1 != zreg
+  <-> 0b100 @ 0b1 @ encdec_r(cs1) @ 0b00000 @ 0b10 if cs1 != zreg
 mapping clause assembly = C_CJALR(cs1) if cs1 != zreg
   <-> "c.cjalr" ^ spc() ^ reg_name(cs1) if cs1 != zreg
 
@@ -216,7 +216,7 @@ function clause decompress(C_CJALR(cs1)) = Some(CJALR(zeros(), cs1, ra))
 union clause ast = C_CJR : (regidx)
 
 mapping clause encdec_compressed_capmode = C_CJR(cs1) if cs1 != zreg
-  <-> 0b100 @ 0b0 @ cs1 : regidx @ 0b00000 @ 0b10 if cs1 != zreg
+  <-> 0b100 @ 0b0 @ encdec_r(cs1) @ 0b00000 @ 0b10 if cs1 != zreg
 mapping clause assembly = C_CJR(cs1) if cs1 != zreg
   <-> "c.cjr" ^ spc() ^ reg_name(cs1) if cs1 != zreg
 

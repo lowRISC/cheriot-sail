@@ -90,7 +90,7 @@ function handle_cheri_cap_exception(capEx, regnum) =
  */
 val handle_cheri_reg_exception : (CapEx, regidx) -> unit
 function handle_cheri_reg_exception(capEx, regnum) =
-  let reg6 = 0b0 @ regnum in
+  let reg6 = 0b0 @ regnum.idx in
   handle_cheri_cap_exception(capEx, reg6)
 
 /*!
@@ -169,7 +169,7 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
 
   let auth_val = C(base_reg);
   let newAddr = auth_val.address + offset;
-  let auth_idx = 0b0 @ base_reg;
+  let auth_idx = 0b0 @ base_reg.idx;
 
   let (have_rqd_load_perm, have_rqd_store_perm) : (bool, bool) = match acc {
     Read(Data)            => (auth_val.permit_load, true                 ),

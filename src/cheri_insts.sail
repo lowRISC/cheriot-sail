@@ -373,7 +373,7 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
       31 => MEPCC,
       _  => {assert(false, "unreachable"); undefined}
     };
-    if (cs1 != zeros()) then {
+    if (cs1 != zreg) then {
       match unsigned(scr) {
         28 => {
           /* Validate that the new MTCC is unsealed, executable and 
@@ -912,7 +912,7 @@ function clause execute StoreCapImm(cs2, cs1, imm) = {
 /* AUICGP is a U-TYPE instruction with its own major opcode.
    AUIPCC reuses the AUIPC encoding: this handled by the post decode hook. */
 
-mapping clause encdec   = AUICGP(imm, cd) if (haveXcheri()) <-> imm : bits(20) @ cd @ 0b1111011 if (haveXcheri())
+mapping clause encdec   = AUICGP(imm, cd) if (haveXcheri()) <-> imm : bits(20) @ encdec_r(cd) @ 0b1111011 if (haveXcheri())
 
 mapping clause assembly = AUICGP(imm, cd) <-> "auicgp" ^ spc() ^ reg_name(cd) ^ sep() ^ hex_bits_20(imm)
 mapping clause assembly = AUIPCC(imm, cd) <-> "auipcc" ^ spc() ^ reg_name(cd) ^ sep() ^ hex_bits_20(imm)
@@ -927,20 +927,20 @@ three-arg ones.
 
 /* Two arg */
 
-mapping clause encdec = CGetPerm(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b00000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CGetType(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b00001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CGetBase(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b00010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CGetLen(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b00011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CGetTag(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b00100 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CGetAddr(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CGetHigh(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b10111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CGetTop(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetPerm(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b00000 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetType(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b00001 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetBase(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b00010 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetLen(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b00011 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetTag(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b00100 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetAddr(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b01111 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetHigh(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b10111 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetTop(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b11000 @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CMove(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CClearTag(cd, cs1)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CMove(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CClearTag(cd, cs1)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ encdec_r(rs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ encdec_r(rs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CGetPerm(rd, cs1)   <-> "cgetperm"   ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CGetType(rd, cs1)   <-> "cgettype"   ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
@@ -959,24 +959,24 @@ mapping clause assembly = CRAM(rd, rs1) <-> "cram" ^ spc() ^ reg_name(rd) ^ sep(
 
 /* Three arg */
 
-mapping clause encdec = CSeal(cd, cs1, cs2)       if (haveXcheri()) <-> 0b0001011 @ cs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CUnseal(cd, cs1, cs2)     if (haveXcheri()) <-> 0b0001100 @ cs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CAndPerm(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0001101 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSetAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010000 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSetHigh(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010110 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CIncAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSetBounds(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0001000 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSetBoundsExact(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSeal(cd, cs1, cs2)       if (haveXcheri()) <-> 0b0001011 @ encdec_r(cs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CUnseal(cd, cs1, cs2)     if (haveXcheri()) <-> 0b0001100 @ encdec_r(cs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CAndPerm(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0001101 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010000 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetHigh(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010110 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CIncAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010001 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBounds(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0001000 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsExact(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001001 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ encdec_r(cs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSpecialRW(cd, scr, cs1)  if (haveXcheri()) <-> 0b0000001 @ scr @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ encdec_r(cs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSpecialRW(cd, scr, cs1)  if (haveXcheri()) <-> 0b0000001 @ scr @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CIncAddrImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSetBoundsImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CIncAddrImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ encdec_r(cs1) @ 0b001 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ encdec_r(cs1) @ 0b010 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CSEQX(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100001 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSEQX(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100001 @ encdec_r(cs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CSeal(cd, cs1, cs2)      <-> "cseal"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 mapping clause assembly = CUnseal(cd, cs1, cs2)    <-> "cunseal"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
@@ -1000,8 +1000,8 @@ mapping clause assembly = CSEQX(rd, cs1, cs2) <-> "cseqx" ^ spc() ^ reg_name(rd)
 
 /* Loads and stores */
 
-mapping clause encdec = LoadCapImm(cd, rs1, offset) <-> offset @ rs1 @ 0b011 @ cd @ 0b0000011 /* lc */
-mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) <-> off7 : bits(7) @ cs2 @ rs1 @ 0b011 @ off5 : bits(5) @ 0b0100011 /* sc */
+mapping clause encdec = LoadCapImm(cd, rs1, offset) <-> offset @ encdec_r(rs1) @ 0b011 @ encdec_r(cd) @ 0b0000011 /* lc */
+mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) <-> off7 : bits(7) @ encdec_r(cs2) @ encdec_r(rs1) @ 0b011 @ off5 : bits(5) @ 0b0100011 /* sc */
 
 mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
@@ -1013,14 +1013,14 @@ mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_r
  * only supports cap mode so these always have priority over the RISC-V
  * ones.
  */
-mapping clause encdec_capmode = AUIPCC(imm, cd) <-> imm @ cd @ 0b0010111
+mapping clause encdec_capmode = AUIPCC(imm, cd) <-> imm @ encdec_r(cd) @ 0b0010111
 mapping clause assembly = AUIPCC(imm, cd)
   <-> "auipcc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_20(imm)
-mapping clause encdec_capmode = CJALR(imm, cs1, cd) <-> imm @ cs1 @ 0b000 @ cd @ 0b1100111
+mapping clause encdec_capmode = CJALR(imm, cs1, cd) <-> imm @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1100111
 mapping clause assembly = CJALR(imm, cs1, cd)
   <-> "cjalr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm)
 /* See `mapping clause encdec = RISCV_JAL` for why we have to use this syntax */
 mapping clause encdec_capmode = CJAL(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13 @ imm_12_9 @ 0b0, cd)
-  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ cd @ 0b1101111
+  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ encdec_r(cd) @ 0b1101111
 mapping clause assembly = CJAL(imm, cd)
   <-> "cjal" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_21(imm)

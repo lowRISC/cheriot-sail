@@ -153,7 +153,11 @@ function rC_bits(r: bits(5)) -> regtype = rC(unsigned(r))
 
 function wC_bits(r: bits(5), v: regtype) -> unit = wC(unsigned(r), v)
 
-overload C = {rC_bits, wC_bits, rC, wC}
+function rC_idx(r: regidx) -> regtype = rC_bits(r.idx)
+
+function wC_idx(r: regidx, v: regtype) -> unit = wC_bits(r.idx, v)
+
+overload C = {rC_bits, wC_bits, rC_idx, wC_idx, rC, wC}
 
 val ext_init_regs : unit -> unit
 function ext_init_regs () = {
@@ -216,7 +220,7 @@ function ext_rvfi_init () = {
 
 /* register names */
 
-val cap_reg_name_abi : regidx -> string
+val cap_reg_name_abi : bits(5) -> string
 
 function cap_reg_name_abi(r) = {
   "_"
@@ -226,10 +230,10 @@ overload to_str = {cap_reg_name_abi}
 
 /* mappings for assembly */
 
-val cap_reg_name : bits(5) <-> string
+val cap_reg_name : regidx <-> string
 mapping cap_reg_name = {
-    0b00000 <-> "cnull",
-    r       <-> "c" ^ reg_name(r)
+    struct { idx = 0b00000 } <-> "cnull",
+    r <-> "c" ^ reg_name(r)
 }
 
 mapping cap_creg_name : bits(3) <-> string = {
