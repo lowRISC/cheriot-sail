@@ -114,7 +114,9 @@ function get_xret_target(p) = {
  */
 val set_xret_target : (Privilege, xlenbits) -> xlenbits
 function set_xret_target(p, value) = {
-  internal_error(__FILE__, __LINE__,"unsupported");
+  // Do nothing, writes are not supported
+  let cap : Capability = MEPCC;
+  cap.address
 }
 
 /**
@@ -140,10 +142,9 @@ function get_stvec() -> xlenbits =
 function get_utvec() -> xlenbits =
   zeros()
 
-function set_mtvec(value : xlenbits) -> xlenbits = {
-  internal_error(__FILE__, __LINE__,"unsupported");
-  zeros()
-}
+function set_mtvec(value : xlenbits) -> xlenbits =
+  // Ignore write
+  MTCC.address
 
 function set_stvec(value : xlenbits) -> xlenbits = {
   internal_error(__FILE__, __LINE__,"unsupported");
