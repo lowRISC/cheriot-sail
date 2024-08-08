@@ -104,23 +104,23 @@ function legalize_mshwm(v : xlenbits) -> xlenbits = {
 //mapping clause csr_name_map = 0x9c0 <-> "sccsr"
 //mapping clause csr_name_map = 0xBc0 <-> "mccsr"
 
-function clause ext_read_CSR (0x8C0) = Some(uccsr.bits())
-function clause ext_read_CSR (0x9C0) = Some(sccsr.bits())
-function clause ext_read_CSR (0xBC0) = Some(mccsr.bits())
+// function clause ext_read_CSR (0x8C0) = Some(uccsr.bits())
+// function clause ext_read_CSR (0x9C0) = Some(sccsr.bits())
+// function clause ext_read_CSR (0xBC0) = Some(mccsr.bits())
 
 function clause ext_read_CSR (0xBC1) = Some(MSHWM)
 function clause ext_read_CSR (0xBC2) = Some(MSHWMB)
 
-function clause ext_write_CSR (0x8C0, value) = { uccsr = legalize_ccsr(uccsr, value); Some(uccsr.bits()) }
-function clause ext_write_CSR (0x9C0, value) = { sccsr = legalize_ccsr(sccsr, value); Some(sccsr.bits()) }
-function clause ext_write_CSR (0xBC0, value) = { mccsr = legalize_ccsr(mccsr, value); Some(mccsr.bits()) }
+// function clause ext_write_CSR (0x8C0, value) = { uccsr = legalize_ccsr(uccsr, value); Some(uccsr.bits()) }
+// function clause ext_write_CSR (0x9C0, value) = { sccsr = legalize_ccsr(sccsr, value); Some(sccsr.bits()) }
+// function clause ext_write_CSR (0xBC0, value) = { mccsr = legalize_ccsr(mccsr, value); Some(mccsr.bits()) }
 
 function clause ext_write_CSR (0xBC1, value) = { MSHWM  = legalize_mshwm(value); Some(MSHWM) }
 function clause ext_write_CSR (0xBC2, value) = { MSHWMB = legalize_mshwm(value); Some(MSHWMB) }
 
-function clause ext_is_CSR_defined (0x8C0, p) = haveUsrMode()  // uccsr
-function clause ext_is_CSR_defined (0x9C0, p) = haveSupMode() & (p == Machine | p == Supervisor) // sccsr
-function clause ext_is_CSR_defined (0xBC0, p) = p == Machine | p == Supervisor // mccsr
+// function clause ext_is_CSR_defined (0x8C0, p) = haveUsrMode()  // uccsr
+// function clause ext_is_CSR_defined (0x9C0, p) = haveSupMode() & (p == Machine | p == Supervisor) // sccsr
+// function clause ext_is_CSR_defined (0xBC0, p) = p == Machine | p == Supervisor // mccsr
 
 function clause ext_is_CSR_defined (0xBC1, Machine) = true // MSHWM
 function clause ext_is_CSR_defined (0xBC2, Machine) = true // MSHWMB
