@@ -352,6 +352,7 @@ union clause ast = CSpecialRW : (regidx, screg, regidx)
  */
 function clause execute (CSpecialRW(cd, scr, cs1)) = {
   let specialExists : bool = match unsigned(scr) {
+    27 => true,
     28 => true,
     29 => true,
     30 => true,
@@ -367,6 +368,7 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
   } else {
     var cs1_val = C(cs1);
     C(cd) = match unsigned(scr) {
+      27 => int_to_cap(0x0000aa55), // Stkz disabled
       28 => MTCC,
       29 => MTDC,
       30 => MScratchC,
@@ -375,6 +377,7 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     };
     if (cs1 != zreg) then {
       match unsigned(scr) {
+        27 => (), // Does nothing
         28 => {
           /* Validate that the new MTCC is unsealed, executable and 
              indicates direct trap mode */
