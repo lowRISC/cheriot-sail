@@ -116,8 +116,16 @@ function clause execute(CJAL(imm, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
-    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
-    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+
+    if cd == ra then {
+      /* When writing to ra, generate a sealed return capability. */
+      let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
+      C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+    } else {
+      /* Generate an unsealed return capability. */
+      C(cd) = linkCap;
+    };
+
     nextPC = newPC;
     RETIRE_SUCCESS
   }
@@ -176,8 +184,22 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
-    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
-    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+
+    if cd == ra then {
+      /*
+       * When writing to ra, generate a sealed return capability.  We can get
+       * here with cs1 unsealed or any forward sentry type.
+       */
+      let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
+      C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+    } else {
+      /*
+       * Generate an unsealed return capability.  From the conditions above, it
+       * must be the case that cs1 is unsealed or a forward inheriting sentry.
+       */
+      C(cd) = linkCap;
+    };
+
     nextPC = newPC;
     nextPCC = unsealCap(cs1_val);
     if unsigned(cs1_val.otype) == otype_sentry_id | unsigned(cs1_val.otype) == otype_sentry_bid then
@@ -413,7 +435,8 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  * previous value and bits 0 to [cap_perms_width]-1 of integer register *rs2*.
  * If the resulting set of permissions cannot be represented by the capability
  * encoding then the result will have a (possibly empty) subset of the ANDed
- * permissions. If *cs1* was sealed then *cd*.**tag** is cleared.
+ * permissions. If *cs1* was sealed and *rs2* codes for clearing anything other
+ * than Permit_Global, then *cd*.**tag** is cleared.
  */
 function clause execute(CAndPerm(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
@@ -422,8 +445,23 @@ function clause execute(CAndPerm(cd, cs1, rs2)) = {
   let perms = getCapPerms(cs1_val);
   let mask = truncate(rs2_val, cap_perms_width);
 
-  let inCap = clearTagIfSealed(cs1_val);
-  let newCap = setCapPerms(inCap, (perms & mask));
+  let newperms = perms & mask;
+
+  /*
+   * CAndPerm on a sealed cap clears the tag unless the mask is all ones or
+   * has *only* the global permission clear.
+   *
+   * Here, perm_global is a bit vector (in the architectural format used by
+   * [CAndPerm] and [CGetPerm]) of all zeros except for the global permission
+   * bit.  Its formulation here relies on null_cap having no asserted
+   * permissions (which we verify in our SMT properties; see
+   * [prop_null_noperms]).
+   */
+  let perm_global = getCapPerms({ null_cap with global = true });
+  let inCap = clearTagIf(cs1_val,
+                isCapSealed(cs1_val) & ((mask | perm_global) != ones()));
+
+  let newCap = setCapPerms(inCap, newperms);
 
   C(cd) = newCap;
   RETIRE_SUCCESS
@@ -599,6 +637,42 @@ function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
+union clause ast = CSetBoundsRoundDown : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set to the capability in register *cs1* with its
+ * **base** field replaced with *cs1*.**address** and its **length** field
+ * replaced with a representable value no larger than the value in the integer
+ * register *rs2*.  That **length** will be nonzero if *rs2* is nonzero.
+ *
+ * ## Notes
+ *
+ *  - As with [CSetBounds], the implementation here does the bounds check on the
+ *    *requested* bounds.  This is less interesting here than there because the
+ *    results of [setCapBoundsRoundDown] are always a subset of the requested
+ *    range.
+ *
+ *  - The present implementation returns the largest representable span from the
+ *    given base (*cs1*.**address**) whose length is no more than *rs2*, except
+ *    that it will not return anything larger than the largest capability
+ *    representable with an exponent of 14.  This caveat simplifies handling of
+ *    very large capabilities, which we do not expect to be used with this
+ *    instruction in practice.  However, we may revisit this decision in future
+ *    editions; software should depend only on the result being representable
+ *    and of non-zero length (unless *rs2* was zero).
+ */
+function clause execute (CSetBoundsRoundDown(cd, cs1, rs2)) = {
+  let cs1_val = C(cs1);
+  let rs2_val = X(rs2);
+
+  let newBase = cs1_val.address;
+  let newLen = rs2_val;
+  let inBounds = inCapBounds(cs1_val, newBase, unsigned(newLen));
+  let inCap = clearTagIfSealed(cs1_val);
+  let newCap = setCapBoundsRoundDown(inCap, newBase, newLen);
+  C(cd) = clearTagIf(newCap, not(inBounds));
+  RETIRE_SUCCESS
+}
+
 union clause ast = CClearTag : (regidx, regidx)
 /*!
  * Capability register *cd* is replaced with the contents of *cs1*, with
@@ -718,7 +792,8 @@ function clause execute (CSeal(cd, cs1, cs2)) = {
         1 => true, /* otype_sentry */
         2 => true, /* otype_sentry_id */
         3 => true, /* otype_sentry_ie */
-        /* 4 and 5 are reserved */
+        4 => true, /* otype_sentry_bid */
+        5 => true, /* otype_sentry_bie */
         6 => true,
         7 => true,
         _ => false
@@ -745,21 +820,19 @@ union clause ast = CUnseal : (regidx, regidx, regidx)
  * Capability register *cd* is replaced with capability register *cs1* and is
  * unsealed, using capability register *cs2* as the authority for the unsealing
  * operation. If *cs2*.**perms** does not grant **Global** then *cd*.**perms**
- * is stripped of **Global**. If *cs2* is unable to authorize the unsealing,
+ * is stripped of **Global**. If *cs2* is unable to authorize the unsealing
+ * (because *cs1*.**otype** is not within the bounsd of *cs2*),
  * the **tag** field of *cd* is cleared.
  */
 function clause execute (CUnseal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
   let cs2_addr = unsigned(cs2_val.address);
-  let (cs2_base, cs2_top) = getCapBounds(cs2_val);
   let permitted = cs2_val.tag
                 & isCapSealed(cs1_val)
                 & not(isCapSealed(cs2_val))
-                & (cs2_addr == unsigned(cs1_val.otype))
-                & cs2_val.permit_unseal
-                & (cs2_addr >= cs2_base)
-                & (cs2_addr < cs2_top);
+                & inCapBounds(cs2_val, zero_extend(cs1_val.otype), 1)
+                & cs2_val.permit_unseal;
   let new_global = cs1_val.global & cs2_val.global;
   let newCap = {unsealCap(cs1_val) with global=new_global};
   C(cd) = clearTagIf(newCap, not(permitted));
@@ -859,6 +932,10 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  * The capability located in memory at *cs1*.**address** $+$ *imm* is
  * replaced with capability register *cs2*.
  *
+ * The stored capability will have its tag forcibly cleared if *cs1*.**perms**
+ * does not grant **Permit_Store_Local_Capability** and *cs2*.**perms** does not
+ * grant **Global**.
+ *
  * ## Exceptions
  *
  * An exception is raised if:
@@ -867,8 +944,6 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  *   - *cs1*.**perms** does not grant **Permit_Store**.
  *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
  *     *cs2*.**tag** is set.
- *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
- *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
  *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  */
@@ -970,6 +1045,7 @@ mapping clause encdec = CSetHigh(cd, cs1, rs2)    if (haveXcheri()) <-> 0b001011
 mapping clause encdec = CIncAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010001 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBounds(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0001000 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsExact(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001001 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsRoundDown(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001010 @ encdec_r(rs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(cd) @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ encdec_r(cs2) @ encdec_r(cs1) @ 0b000 @ encdec_r(rd) @ 0b1011011 if (haveXcheri())
 
@@ -989,6 +1065,7 @@ mapping clause assembly = CSetHigh(cd, cs1, rs2)  <-> "csethigh"    ^ spc() ^ ca
 mapping clause assembly = CIncAddr(cd, cs1, rs2)   <-> "cincaddr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBounds(cd, cs1, rs2) <-> "csetbounds" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBoundsExact(cd, cs1, rs2) <-> "csetboundsexact" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = CSetBoundsRoundDown(cd, cs1, rs2) <-> "csetboundsrounddown" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 
 mapping clause assembly = CSub(rd, cs1, cs2)      <-> "csub"        ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 

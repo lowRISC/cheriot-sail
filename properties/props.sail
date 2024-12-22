@@ -1,36 +1,3 @@
-
-
-/* Syntactic sugar */
-
-infixr 1 -->
-
-type operator -->('p: Bool, 'q: Bool) -> Bool = not('p) | 'q
-val operator --> : forall ('p 'q: Bool). (bool('p), bool('q)) -> bool('p --> 'q)
-function operator --> (p, q) = not_bool(p) | q
-
-infix 1 <-->
-
-type operator <-->('p: Bool, 'q: Bool) -> Bool = ('p --> 'q) & ('q --> 'p)
-val operator <--> : forall ('p 'q: Bool). (bool('p), bool('q)) -> bool('p <--> 'q)
-function operator <--> (p, q) = (p --> q) & (q --> p)
-
-/* Useful functions */
-
-/*!
- * THIS is a helper function to compress and then decompress a Capability.
- * The [Capability] struct can hold non-encodable values therefore some
- * properties encode then decode a Capability to check the effect that
- * compression / decompression has. In general the bounds, address and tag
- * should be unaffected but the permissions and otype might change.
- */
-function encodeDecode(c : Capability) -> Capability =  capBitsToCapability(c.tag, capToBits(c))
-
-/*!
- * THIS is a helper to check that the given Capability is unaffected by
- * compression / decompression.
- */
-function capEncodable(c : Capability) -> bool = c == encodeDecode(c)
-
 // $property
 /*
  * THIS is not actually an invariant but is useful for characterising unusable
@@ -52,23 +19,36 @@ $property
  * Check that null_cap as defined in the Sail encodes to all zeros.
  */
 function prop_nullzero() -> bool = {
-    capEncodable(null_cap) & (capToBits(null_cap) == zeros()) & (null_cap.tag == false)
+    capEncodable(null_cap)
+  & (capToBits(null_cap) == zeros())
+  & (null_cap.tag == false)
 }
 
 $property
-function prop_mem_root() -> bool = {
-    capEncodable(root_cap_mem)
+/*!
+ * Check that null_cap has no set permission bits.
+ */
+function prop_null_noperms() -> bool = {
+  getCapPerms(null_cap) == zeros()
 }
 
 $property
-function prop_exe_root() -> bool = {
-    capEncodable(root_cap_exe)
-}
+/*!
+ * Check that [root_cap_mem] is encodable
+ */
+function prop_mem_root() -> bool = { capEncodable(root_cap_mem) }
 
 $property
-function prop_seal_root() -> bool = {
-    capEncodable(root_cap_seal)
-}
+/*!
+ * Check that [root_cap_exe] is encodable
+ */
+function prop_exe_root() -> bool = { capEncodable(root_cap_exe) }
+
+$property
+/*!
+ * Check that [root_cap_seal] is encodable
+ */
+function prop_seal_root() -> bool = { capEncodable(root_cap_seal) }
 
 $property
 /*!

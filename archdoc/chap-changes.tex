@@ -6,7 +6,7 @@
 \begin{description}
 \item[0.5] The version released as technical report MSR-TR-2023-6: \emph{CHERIoT: Rethinking security for low-cost embedded systems}, February 2023\footnote{\url{https://aka.ms/cheriot-tech-report}}.
 \item[0.6] The current, under-development version of the ISA. The following changes have been made since the previous released version:
-    \begin{description}
+  \begin{description}
     \item[\ghissue{20}, \ghpr{26}] Capability stores now clear the tag of the stored value instead of raising an exception in case of a store-local violation
     (i.e. an attempt to store a non-global capability via a capability without the store-local permission).
     Tag clearing is preferable for software because it removes the possibility of a trap when copying untrusted inputs.
@@ -37,9 +37,23 @@
           Software accepting sealed capabilities must be prepared to receive local (that is, \cappermG-lacking) variants,
           even if none were ever explicitly constructed.
       \end{description}
-    \end{description}
     \item[\ghissue{15}, \ghpr{49}] Document stack high water mark.
     Make it explicitly 16-byte aligned and point out the unaligned write spanning \mshwmb{} corner case, which we do not require hardware to handle.
     \item[\ghpr{54}] Create backward sentries for function returns and add more checks in \rvcheriasminsnref{CJAL}
     Because CHERIoT allows manipulating the status of the interrupt through a function call (and function return) by encoding the interrupt type in the otype, the following attack can occur: A caller calling an interrupt-disabling callee can set the return sentry of the callee to the same callee. This means, the callee will call itself on return all the while operating with interrupts disabled. This will lead to infinite repeated calls to the callee with interrupts disabled, violating availability. This attack can be prevented in CHERIoT by adding two new ``backwards-edge'' sentries and adding more checks on \rvcheriasminsnref{CJALR}.
+      \begin{description}
+        \item[\ghissue{85}, \ghpr{86}] Relaxes the original change to better support code outlining,
+          by allowing \rvcheriasminsnref{CJALR} to create unsealed return addresses
+          when its (output) link register is not \asm{\$cra}.
+          See the discussion in \cref{sec:sealing}.
+      \end{description}
+    \item[\ghissue{71}, \ghpr{87}] \rvcheriasminsnref{CUnseal} now no longer requires exact equality between sealed input otype and authority address.
+      Instead, it merely requires that the otype of the sealed input is within bounds to yield a tagged result.
+      The address of a sealing-root capability is now meaningful only to \rvcheriasminsnref{CSeal}.
+    \item[\ghissue{72},\ghpr{74}] Introduce \rvcheriasminsnref{CSetBoundsRoundDown} to facilitate constructing representable slices of buffers.
+    \item[\ghissue{70},\ghpr{83}] \rvcheriasminsnref{CAndPerm} can now clear \cappermG on sealed caps, so long as that is the only bit being cleared.
+      Previously, this was possible by round-tripping to memory, loading back through an authority lacking \cappermILG(recall \ghpr{44} and \ghissue{14} above), but not directly as a register-to-register operation.
+      Presently, we require that the mask provided to \rvcheriasminsnref{CAndPerm} be all-1s except possibly \cappermG;
+      that is, feeding the result of \rvcheriasminsnref{CGetPerm} on a sealed capability to \rvcheriasminsnref{CAndPerm} will still clear the tag of the result.
+  \end{description}
 \end{description}
