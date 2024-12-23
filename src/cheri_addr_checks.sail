@@ -115,9 +115,10 @@ function ext_fetch_check_pc(start_pc, pc) = {
     /* We need to perform the permission checks only for the first granule. */
     if      not(PCC.tag)
     then {
-      if MTCC.tag
-      then Ext_FetchAddr_Error(CapEx_TagViolation)
-      else {
+      /* For verification purposes I would prefer not to have exceptions */
+      Ext_FetchAddr_Error(CapEx_TagViolation)
+      /*if MTCC.tag
+      else {*/
         /*
          * We're going to infinite loop, installing an untagged MTCC to PCC
          * and coming right back here.  Much better to just stop now.
@@ -127,8 +128,8 @@ function ext_fetch_check_pc(start_pc, pc) = {
          * changing that would require changes in the upstream submodule.
          * Something to consider when we're rebasing against Zcheripurecap.
          */
-        not_implemented ("Untagged PCC and MTCC infinite loops; stopping now")
-      }
+        /*not_implemented ("Untagged PCC and MTCC infinite loops; stopping now")
+      }*/
     }
     else if isCapSealed(PCC)
     then    internal_error(__FILE__, __LINE__, "PCC should never be sealed")
