@@ -691,8 +691,8 @@ union clause ast = CSetBoundsRoundDown : (regidx, regidx, regidx)
  *    and of non-zero length (unless *rs2* was zero).
  */
 function clause execute (CSetBoundsRoundDown(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
-  let rs2_val = X(rs2);
+  let cs1_val = C(cs1, rs_1);
+  let rs2_val = X(rs2, rs_2);
 
   let newBase = cs1_val.address;
   let newLen = rs2_val;
