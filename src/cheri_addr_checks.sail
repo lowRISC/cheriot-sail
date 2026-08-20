@@ -108,28 +108,39 @@ function pcc_access_system_regs () = PCC.access_system_regs
 
 type ext_fetch_addr_error = CapEx
 
+$ifdef RVFI_DII
+val untagged_pcc_mtcc_action: unit -> Ext_FetchAddr_Check(ext_fetch_addr_error)
+function untagged_pcc_mtcc_action() = {
+  /*
+   * We're not going to infinitely loop because we are using
+   * Direct Instruction Injection, and we don't want to kill the
+   * simulation because it would restrict testing with TestRIG.
+   */
+  Ext_FetchAddr_Error(CapEx_TagViolation)
+}
+$else
+val untagged_pcc_mtcc_action: unit -> Ext_FetchAddr_Check(ext_fetch_addr_error)
+function untagged_pcc_mtcc_action() = {
+  /*
+   * We're going to infinite loop, installing an untagged MTCC to PCC
+   * and coming right back here.  Much better to just stop now.
+   *
+   * TODO: We'd rather go through the HTIF exit path, but the HTIF
+   * registers are not available to us at this point in the code, and
+   * changing that would require changes in the upstream submodule.
+   * Something to consider when we're rebasing against Zcheripurecap.
+   */
+  not_implemented ("Untagged PCC and MTCC infinite loops; stopping now")
+}
+$endif
+
 val ext_fetch_check_pc : (xlenbits, xlenbits) -> Ext_FetchAddr_Check(ext_fetch_addr_error)
 function ext_fetch_check_pc(start_pc, pc) = {
   if   start_pc == pc
   then {
     /* We need to perform the permission checks only for the first granule. */
     if      not(PCC.tag)
-    then {
-      if MTCC.tag
-      then Ext_FetchAddr_Error(CapEx_TagViolation)
-      else {
-        /*
-         * We're going to infinite loop, installing an untagged MTCC to PCC
-         * and coming right back here.  Much better to just stop now.
-         *
-         * TODO: We'd rather go through the HTIF exit path, but the HTIF
-         * registers are not available to us at this point in the code, and
-         * changing that would require changes in the upstream submodule.
-         * Something to consider when we're rebasing against Zcheripurecap.
-         */
-        not_implemented ("Untagged PCC and MTCC infinite loops; stopping now")
-      }
-    }
+    then    untagged_pcc_mtcc_action()
     else if isCapSealed(PCC)
     then    internal_error(__FILE__, __LINE__, "PCC should never be sealed")
     else if not(PCC.permit_execute)
@@ -235,10 +246,10 @@ function ext_check_xret_priv (p : Privilege) : Privilege -> bool =
   pcc_access_system_regs()
 
 /* Called if above check fails */
-function ext_fail_xret_priv () : unit -> unit = 
+function ext_fail_xret_priv () : unit -> unit =
   handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation)
 
-function ext_check_CSR (csrno : bits(12), p : Privilege, isWrite : bool) -> bool = 
+function ext_check_CSR (csrno : bits(12), p : Privilege, isWrite : bool) -> bool =
   if not(pcc_access_system_regs()) then match (csrno) {
     /* CSR allow list in absence of access system registers */
     0xB00 => not(isWrite), // mcycle
